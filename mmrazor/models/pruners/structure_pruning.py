@@ -104,7 +104,7 @@ class StructurePruner(BaseModule, metaclass=ABCMeta):
                 module2name[module] = name
                 name2module[name] = module
                 var2module[id(module.weight)] = module
-                self.add_pruning_attrs(module)
+                # self.add_pruning_attrs(module)
                 visited[name] = False
             if isinstance(module, SwitchableBatchNorm2d):
                 name2module[name] = module
@@ -136,6 +136,8 @@ class StructurePruner(BaseModule, metaclass=ABCMeta):
         for group_name, group in same_out_channel_groups.items():
             for module_name in group:
                 self.module2group[module_name] = group_name
+
+        self.group2modules = same_out_channel_groups
 
         self.modules_have_ancest = list()
         for node_name, parents_name in node2parents.items():
@@ -232,7 +234,7 @@ class StructurePruner(BaseModule, metaclass=ABCMeta):
             # 2. there is only one element in parents, ``concat`` or ``chunk``
             # In case 1, all the ``Conv2d`` share the same space_id and
             # out_mask.
-            # So in all cases, we only need the very first element in parents
+            # So in all cases, we only need the every first element in parents
             parent = parents[0]
             space_id = self.get_space_id(parent)
 
@@ -275,11 +277,6 @@ class StructurePruner(BaseModule, metaclass=ABCMeta):
             new_out_mask = torch.ones_like(out_mask)
             subnet_dict[space_id] = new_out_mask
         self.set_subnet(subnet_dict)
-
-    @abstractmethod
-    def set_min_channel(self):
-        """Set the number of channels each layer to minimum."""
-        pass
 
     def find_make_group_parser(self, node_name, name2module):
         """Find the corresponding make_group_parser according to the
@@ -356,10 +353,10 @@ class StructurePruner(BaseModule, metaclass=ABCMeta):
         groups = dict()
         idx = 0
         for group in same_out_channel_groups.values():
-            if len(group) > 1:
-                group_name = f'group_{idx}'
-                groups[group_name] = group
-                idx += 1
+            # if len(group) > 1:
+            group_name = f'group_{idx}'
+            groups[group_name] = group
+            idx += 1
 
         return groups
 
@@ -387,7 +384,7 @@ class StructurePruner(BaseModule, metaclass=ABCMeta):
 
         return MethodType(modified_forward, module)
 
-    def add_pruning_attrs(self, module):
+    def add_pruning_attrs(self, module, modify_forward=True):
         """Add masks to a ``nn.Module``."""
         if type(module).__name__ == 'Conv2d':
             module.register_buffer(
@@ -396,13 +393,15 @@ class StructurePruner(BaseModule, metaclass=ABCMeta):
             module.register_buffer(
                 'out_mask',
                 module.weight.new_ones((1, module.out_channels, 1, 1), ))
-            module.forward = self.modify_conv_forward(module)
+            if modify_forward:
+                module.forward = self.modify_conv_forward(module)
         if type(module).__name__ == 'Linear':
             module.register_buffer(
                 'in_mask', module.weight.new_ones((1, module.in_features), ))
             module.register_buffer(
                 'out_mask', module.weight.new_ones((1, module.out_features), ))
-            module.forward = self.modify_fc_forward(module)
+            if modify_forward:
+                module.forward = self.modify_fc_forward(module)
         if isinstance(module, nn.modules.batchnorm._BatchNorm):
             module.register_buffer(
                 'out_mask',
@@ -445,6 +444,9 @@ class StructurePruner(BaseModule, metaclass=ABCMeta):
             dict: The channel search space. The key is space_id and the value
                 is the corresponding out_mask.
         """
+        for module in name2module.values():
+            self.add_pruning_attrs(module, modify_forward=True)
+
         search_space = dict()
 
         for module_name in self.modules_have_child:
