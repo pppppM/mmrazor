@@ -13,7 +13,7 @@ from mmcv.runner.hooks import DistEvalHook, EvalHook
 
 # Differences from mmclassification.
 from mmrazor.core.distributed_wrapper import DistributedDataParallelWrapper
-from mmrazor.core.hooks import DistSamplerSeedHook
+from mmrazor.core.hooks import DistSamplerSeedHook, GreedySamplerHook
 from mmrazor.core.optimizer import build_optimizers
 from mmrazor.datasets.utils import split_dataset
 from mmrazor.utils import find_latest_checkpoint
@@ -53,11 +53,14 @@ def train_model(model,
     between mmclassificaiton, mmsegmentation or mmdetection.
     """
     logger = get_root_logger()
+    sampler_cfg = cfg.get('sampler', None)
     # Difference from mmclassification.
     # Split dataset.
-    if cfg.data.get('split', False):
+    if cfg.data.get('split', False) and not isinstance(dataset[0], list):
         train_dataset = dataset[0]
-        dataset[0] = split_dataset(train_dataset)
+        proportion = cfg.data.get('proportion', 0.5)
+        num = cfg.data.get('num', 0)
+        dataset[0] = split_dataset(train_dataset, proportion, num)
 
     # Difference from mmclassification.
     # Build multi dataloaders according the splited datasets.
@@ -181,6 +184,7 @@ def train_model(model,
             dist=distributed,
             shuffle=False,
             round_up=True)
+
         eval_cfg = cfg.get('evaluation', {})
 
         eval_cfg['by_epoch'] = cfg.runner['type'] != 'IterBasedRunner'
@@ -190,6 +194,20 @@ def train_model(model,
         # Refers to https://github.com/open-mmlab/mmcv/issues/1261
         runner.register_hook(
             eval_hook(val_dataloader, **eval_cfg), priority='LOW')
+
+    if sampler_cfg:
+        train_val_dataset = build_dataset(cfg.data.train_val,
+                                          dict(test_mode=True))
+        train_val_dataloader = build_dataloader(
+            train_val_dataset,
+            samples_per_gpu=cfg.data.samples_per_gpu,
+            workers_per_gpu=cfg.data.workers_per_gpu,
+            dist=distributed,
+            shuffle=False,
+            round_up=True)
+        runner.register_hook(
+            GreedySamplerHook(train_val_dataloader, **sampler_cfg),
+            priority='LOW')
 
     resume_from = None
     if cfg.resume_from is None and cfg.get('auto_resume'):
