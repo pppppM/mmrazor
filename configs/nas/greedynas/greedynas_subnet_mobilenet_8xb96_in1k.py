@@ -34,13 +34,20 @@ model = dict(
     ),
 )
 
+act_hswish = dict(type='HSwish', inplace=True)
+act_hsigmoid = dict(
+                type='HSigmoid', 
+                bias=3, 
+                divisor=6, 
+                min_value=0, 
+                max_value=6)
+# max_value=1: 76.51; max_value=6: 75.03
+
 se_cfg = dict(
     ratio=4,
     divisor=1,
-    act_cfg=(dict(type='HSwish'),
-             dict(
-                 type='HSigmoid', bias=3, divisor=6, min_value=0,
-                 max_value=1)))
+    act_cfg=(act_hswish, act_hsigmoid))
+    
 mutator = dict(
     type='OneShotMutator',
     placeholder_mapping=dict(
@@ -53,42 +60,42 @@ mutator = dict(
                     expand_ratio=3,
                     norm_cfg=norm_cfg,
                     drop_path_rate=0.2,
-                    act_cfg=dict(type='HSwish')),
+                    act_cfg=act_hswish),
                 mb_k5e3=dict(
                     type='MBBlock',
                     kernel_size=5,
                     expand_ratio=3,
                     norm_cfg=norm_cfg,
                     drop_path_rate=0.2,
-                    act_cfg=dict(type='HSwish')),
+                    act_cfg=act_hswish),
                 mb_k7e3=dict(
                     type='MBBlock',
                     kernel_size=7,
                     expand_ratio=3,
                     norm_cfg=norm_cfg,
                     drop_path_rate=0.2,
-                    act_cfg=dict(type='HSwish')),
+                    act_cfg=act_hswish),
                 mb_k3e6=dict(
                     type='MBBlock',
                     kernel_size=3,
                     expand_ratio=6,
                     norm_cfg=norm_cfg,
                     drop_path_rate=0.2,
-                    act_cfg=dict(type='HSwish')),
+                    act_cfg=act_hswish),
                 mb_k5e6=dict(
                     type='MBBlock',
                     kernel_size=5,
                     expand_ratio=6,
                     norm_cfg=norm_cfg,
                     drop_path_rate=0.2,
-                    act_cfg=dict(type='HSwish')),
+                    act_cfg=act_hswish),
                 mb_k7e6=dict(
                     type='MBBlock',
                     kernel_size=7,
                     expand_ratio=6,
                     norm_cfg=norm_cfg,
                     drop_path_rate=0.2,
-                    act_cfg=dict(type='HSwish')),
+                    act_cfg=act_hswish),
                 mb_k3e3_se=dict(
                     type='MBBlock',
                     kernel_size=3,
@@ -96,7 +103,7 @@ mutator = dict(
                     se_cfg=se_cfg,
                     norm_cfg=norm_cfg,
                     drop_path_rate=0.2,
-                    act_cfg=dict(type='HSwish')),
+                    act_cfg=act_hswish),
                 mb_k5e3_se=dict(
                     type='MBBlock',
                     kernel_size=5,
@@ -104,7 +111,7 @@ mutator = dict(
                     se_cfg=se_cfg,
                     norm_cfg=norm_cfg,
                     drop_path_rate=0.2,
-                    act_cfg=dict(type='HSwish')),
+                    act_cfg=act_hswish),
                 mb_k7e3_se=dict(
                     type='MBBlock',
                     kernel_size=7,
@@ -112,7 +119,7 @@ mutator = dict(
                     se_cfg=se_cfg,
                     norm_cfg=norm_cfg,
                     drop_path_rate=0.2,
-                    act_cfg=dict(type='HSwish')),
+                    act_cfg=act_hswish),
                 mb_k3e6_se=dict(
                     type='MBBlock',
                     kernel_size=3,
@@ -120,7 +127,7 @@ mutator = dict(
                     se_cfg=se_cfg,
                     norm_cfg=norm_cfg,
                     drop_path_rate=0.2,
-                    act_cfg=dict(type='HSwish')),
+                    act_cfg=act_hswish),
                 mb_k5e6_se=dict(
                     type='MBBlock',
                     kernel_size=5,
@@ -128,7 +135,7 @@ mutator = dict(
                     se_cfg=se_cfg,
                     norm_cfg=norm_cfg,
                     drop_path_rate=0.2,
-                    act_cfg=dict(type='HSwish')),
+                    act_cfg=act_hswish),
                 mb_k7e6_se=dict(
                     type='MBBlock',
                     kernel_size=7,
@@ -136,7 +143,7 @@ mutator = dict(
                     se_cfg=se_cfg,
                     norm_cfg=norm_cfg,
                     drop_path_rate=0.2,
-                    act_cfg=dict(type='HSwish')),
+                    act_cfg=act_hswish),
                 identity=dict(type='Identity'))),
         first_blocks=dict(
             type='OneShotOP',
@@ -147,7 +154,7 @@ mutator = dict(
                     expand_ratio=1,
                     norm_cfg=norm_cfg,
                     drop_path_rate=0.2,
-                    act_cfg=dict(type='HSwish'))))))
+                    act_cfg=act_hswish)))))
 
 algorithm = dict(
     type='GreedyNAS',

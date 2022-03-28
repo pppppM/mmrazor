@@ -30,6 +30,7 @@ model = dict(
 
 se_cfg = dict(
     ratio=4,
+    divisor=1,
     act_cfg=(dict(type='HSwish'),
              dict(
                  type='HSigmoid', bias=3, divisor=6, min_value=0,
