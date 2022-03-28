@@ -101,8 +101,8 @@ policy_imagenet = [
 ]
 
 train_pipeline = [
-    dict(type='LoadImageFromFile', backend='pillow'),
-    dict(type='RandomResizedCrop', size=224),
+    dict(type='LoadImageFromFile'),
+    dict(type='RandomResizedCrop', size=224, backend='pillow'),
     dict(type='RandomFlip', flip_prob=0.5, direction='horizontal'),
     dict(type='AutoAugment', policies=policy_imagenet),
     dict(type='ColorJitter', brightness=0.0, contrast=0.0, saturation=0.0),
@@ -114,7 +114,7 @@ train_pipeline = [
 ]
 train_val_pipeline = [
     dict(type='LoadImageFromFile', backend='pillow'),
-    dict(type='Resize', size=(256, -1)),
+    dict(type='Resize', size=(256, -1), backend='pillow'),
     dict(type='CenterCrop', crop_size=224),
     dict(type='Normalize', **img_norm_cfg),
     dict(type='ImageToTensor', keys=['img']),
