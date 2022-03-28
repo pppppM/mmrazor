@@ -40,8 +40,7 @@ act_hsigmoid = dict(
                 bias=3, 
                 divisor=6, 
                 min_value=0, 
-                max_value=6)
-# max_value=1: 76.51; max_value=6: 75.03
+                max_value=1)
 
 se_cfg = dict(
     ratio=4,
