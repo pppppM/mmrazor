@@ -12,19 +12,11 @@ aa_params = dict(
     translate_const=int(224 * 0.45),
     img_mean=tuple([round(x * 255) for x in IMAGENET_DEFAULT_MEAN]),
     interpolation='bilinear')
-hparams = dict(pad_val=0)
 train_pipeline = [
     dict(type='LoadImageFromFile'),
     dict(type='RandomResizedCrop', size=224, backend='pillow'),
     dict(type='RandomFlip', flip_prob=0.5, direction='horizontal'),
-    dict(
-        type='RandAugment',
-        policies={{_base_.rand_policies}},
-        num_policies=2,
-        magnitude_level=9,
-        magnitude_std=0.5,
-        total_level=10,
-        hparams=hparams),
+    dict(type='RandAugment', policies={{_base_.rand_policies}}),
     # dict(
     #     type='RandAugmentTransform',
     #     config_str='rand-m9-mstd0.5',
@@ -59,7 +51,7 @@ test_pipeline = [
     dict(type='Collect', keys=['img'])
 ]
 data = dict(
-    samples_per_gpu=192,
+    samples_per_gpu=96,
     workers_per_gpu=8,
     train=dict(
         type=dataset_type,

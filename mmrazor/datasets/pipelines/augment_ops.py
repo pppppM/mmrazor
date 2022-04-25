@@ -492,8 +492,8 @@ class RandAugmentTransform(object):
                 weight_idx = int(val)
             else:
                 assert False, 'Unknown RandAugment config section'
-        self.choice_weights = None if weight_idx is None else \
-            _select_rand_weights(weight_idx)
+        self.choice_weights = None if weight_idx is None \
+            else _select_rand_weights(weight_idx)
 
     def __call__(self, results):
         ra_ops = rand_augment_ops(

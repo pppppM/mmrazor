@@ -7,7 +7,7 @@ rand_policies = [
         type='Rotate',
         magnitude_key='angle',
         magnitude_range=(-30, 30),
-        interpolation='bicubic'),
+        interpolation=resample),
     dict(type='Posterize', magnitude_key='bits', magnitude_range=(0, 4)),
     dict(type='Solarize', magnitude_key='thr', magnitude_range=(0, 256)),
     dict(

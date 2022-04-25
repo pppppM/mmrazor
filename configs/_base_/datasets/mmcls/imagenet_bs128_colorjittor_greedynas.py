@@ -4,8 +4,8 @@ img_norm_cfg = dict(
     mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_rgb=True)
 
 train_pipeline = [
-    dict(type='LoadImageFromFile'),
-    dict(type='RandomResizedCrop', size=224, backend='pillow'),
+    dict(type='LoadImageFromFile', backend='pillow'),
+    dict(type='RandomResizedCrop', size=224),
     dict(type='RandomFlip', flip_prob=0.5, direction='horizontal'),
     dict(type='ColorJitter', brightness=0.0, contrast=0.0, saturation=0.0),
     dict(type='Normalize', **img_norm_cfg),
@@ -14,8 +14,8 @@ train_pipeline = [
     dict(type='Collect', keys=['img', 'gt_label'])
 ]
 train_val_pipeline = [
-    dict(type='LoadImageFromFile'),
-    dict(type='Resize', size=(256, -1), backend='pillow'),
+    dict(type='LoadImageFromFile', backend='pillow'),
+    dict(type='Resize', size=(256, -1)),
     dict(type='CenterCrop', crop_size=224),
     dict(type='Normalize', **img_norm_cfg),
     dict(type='ImageToTensor', keys=['img']),
@@ -23,8 +23,8 @@ train_val_pipeline = [
     dict(type='Collect', keys=['img', 'gt_label'])
 ]
 test_pipeline = [
-    dict(type='LoadImageFromFile'),
-    dict(type='Resize', size=(256, -1), backend='pillow'),
+    dict(type='LoadImageFromFile', backend='pillow'),
+    dict(type='Resize', size=(256, -1)),
     dict(type='CenterCrop', crop_size=224),
     dict(type='Normalize', **img_norm_cfg),
     dict(type='ImageToTensor', keys=['img']),

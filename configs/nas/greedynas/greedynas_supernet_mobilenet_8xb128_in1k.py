@@ -11,6 +11,7 @@ model = dict(
         type='SearchableMobileNet',
         arch_setting_type='greedynas',
         widen_factor=1.0,
+        dropout_rate=0.2,
         norm_cfg=norm_cfg,
         act_cfg=dict(type='ReLU')),
     neck=dict(type='GlobalAveragePooling'),

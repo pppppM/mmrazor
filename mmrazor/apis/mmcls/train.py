@@ -14,7 +14,8 @@ from mmcv.runner.hooks import DistEvalHook, EvalHook
 # Differences from mmclassification.
 from mmrazor.core.distributed_wrapper import DistributedDataParallelWrapper
 from mmrazor.core.hooks import DistSamplerSeedHook, GreedySamplerHook
-from mmrazor.core.optimizer import build_optimizers
+from mmrazor.core.optimizer import (RMSpropTF, _add_weight_decay,
+                                    build_optimizers)
 from mmrazor.datasets.utils import split_dataset
 from mmrazor.utils import find_latest_checkpoint
 
@@ -124,7 +125,21 @@ def train_model(model,
     # build optimizers
     # Difference from mmclassification.
     # In some algorithms, there will be multi optimizers.
-    optimizer = build_optimizers(model, cfg.optimizer)
+    if cfg.optimizer['type'] == 'RMSpropTF':
+        weight_decay = cfg.optimizer['weight_decay']
+        filter_bias_and_bn = cfg.optimizer['filter_bias_and_bn']
+        lr = cfg.optimizer['lr']
+        eps = cfg.optimizer['eps']
+        momentum = cfg.optimizer['momentum']
+        if weight_decay != 0 and filter_bias_and_bn:
+            params = _add_weight_decay(model, lr, weight_decay)
+            weight_decay = 0
+        else:
+            params = [{'params': model.parameters(), 'initial_lr': lr}]
+        optimizer = RMSpropTF(
+            params, lr, eps=eps, weight_decay=weight_decay, momentum=momentum)
+    else:
+        optimizer = build_optimizers(model, cfg.optimizer)
 
     if cfg.get('runner') is None:
         cfg.runner = {
