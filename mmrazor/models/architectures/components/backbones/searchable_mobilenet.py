@@ -60,7 +60,6 @@ class SearchableMobileNet(BaseBackbone):
                  widen_factor=1.,
                  out_indices=(7, ),
                  frozen_stages=-1,
-                 dropout_rate=0,
                  conv_cfg=None,
                  norm_cfg=dict(type='BN'),
                  act_cfg=dict(type='ReLU6'),
@@ -143,10 +142,6 @@ class SearchableMobileNet(BaseBackbone):
         self.add_module('conv2', layer)
         self.layers.append('conv2')
 
-        if dropout_rate > 0:
-            layer_name = 'dropout'
-            self.add_module(layer_name, nn.Dropout(p=dropout_rate))
-            self.layers.append(layer_name)
 
     def make_layer(self, out_channels, num_blocks, stride, stage_idx):
         """Stack InvertedResidual blocks to build a layer for MobileNetV2.

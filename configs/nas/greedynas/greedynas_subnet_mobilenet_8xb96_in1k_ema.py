@@ -155,6 +155,6 @@ evaluation = dict(interval=1, metric='accuracy', save_best='accuracy_top-1')
 # checkpoint saving
 checkpoint_config = dict(interval=1, max_keep_ckpts=5)
 
-# custom_hooks = [dict(type='EMAHook', momentum=0.0001, warm_up=1)]
+custom_hooks = [dict(type='EMAHook', momentum=0.0001,priority=49)]
 
 find_unused_parameters = False
