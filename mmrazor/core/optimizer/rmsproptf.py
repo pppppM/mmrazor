@@ -2,7 +2,9 @@
 import torch
 from torch.optim import Optimizer
 
+from mmcv.runner import OPTIMIZERS
 
+@OPTIMIZERS.register_module()
 class RMSpropTF(Optimizer):
     """Implements RMSprop algorithm (TensorFlow style epsilon)
     NOTE: This is a direct cut-and-paste of PyTorch RMSprop with eps applied
