@@ -6,13 +6,6 @@ dataset_type = 'ImageNet'
 img_norm_cfg = dict(
     mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_rgb=True)
 
-IMAGENET_DEFAULT_MEAN = (0.485, 0.456, 0.406)
-IMAGENET_DEFAULT_STD = (0.229, 0.224, 0.225)
-aa_params = dict(
-    translate_const=int(224 * 0.45),
-    img_mean=tuple([round(x * 255) for x in IMAGENET_DEFAULT_MEAN[::-1]]),
-    interpolation='bilinear')
-
 
 file_client_args = dict(
     backend='petrel',
@@ -28,11 +21,16 @@ train_pipeline = [
     dict(type='LoadImageFromFile',file_client_args=file_client_args),
     dict(type='RandomResizedCrop', size=224, backend='pillow'),
     dict(type='RandomFlip', flip_prob=0.5, direction='horizontal'),
-    # dict(type='RandAugment', policies={{_base_.rand_policies}}),
     dict(
-        type='RandAugmentTransform',
-        config_str='rand-m9-mstd0.5',
-        hparams=aa_params),
+        type='RandAugment', 
+        policies={{_base_.rand_policies}},
+        num_policies=2,
+        total_level=10,
+        magnitude_level=9,
+        magnitude_std=0.5,
+        hparams=dict(
+            pad_val=[round(x) for x in img_norm_cfg['mean'][::-1]],
+            interpolation='bilinear')),
     dict(
         type='RandomErasing',
         erase_prob=0.2,

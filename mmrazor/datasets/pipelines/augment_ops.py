@@ -18,10 +18,10 @@ _FILL = (128, 128, 128)
 _MAX_LEVEL = 10.
 _HPARAMS_DEFAULT = dict(translate_const=250, img_mean=_FILL)
 _RAND_TRANSFORMS = [
-    # 'Distort',
-    # 'Zoom',
-    # 'Blur',
-    # 'Skew',
+    'Distort',
+    'Zoom',
+    'Blur',
+    'Skew',
     'AutoContrast',
     'Equalize',
     'Invert',
