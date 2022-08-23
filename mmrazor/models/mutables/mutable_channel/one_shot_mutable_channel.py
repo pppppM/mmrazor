@@ -4,6 +4,8 @@ from typing import Callable, Dict, List, Optional, Union
 import numpy as np
 import torch
 
+from mmrazor.models.mutables.base_mutable import (Choice, Chosen, DumpChosen,
+                                                  RuntimeChoice)
 from mmrazor.registry import MODELS
 from ..derived_mutable import DerivedMutable
 from .mutable_channel import MutableChannel
@@ -123,14 +125,7 @@ class OneShotMutableChannel(MutableChannel[int, Dict]):
     def num_choices(self) -> int:
         return len(self.choices)
 
-    def convert_choice_to_mask(self, choice: int) -> torch.Tensor:
-        """Get the mask according to the input choice."""
-        num_channels = choice
-        mask = torch.zeros(self.num_channels).bool()
-        mask[:num_channels] = True
-        return mask
-
-    def dump_chosen(self) -> Dict:
+    def dump_chosen(self) -> DumpChosen:
         assert self.current_choice is not None
 
         return dict(

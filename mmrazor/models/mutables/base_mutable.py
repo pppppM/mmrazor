@@ -1,14 +1,21 @@
 # Copyright (c) OpenMMLab. All rights reserved.
 from abc import ABC, abstractmethod
-from typing import Dict, Generic, Optional, TypeVar
+from typing import Any, Dict, Generic, NamedTuple, Optional, TypeVar
 
 from mmcv.runner import BaseModule
 
-CHOICE_TYPE = TypeVar('CHOICE_TYPE')
-CHOSEN_TYPE = TypeVar('CHOSEN_TYPE')
+Choice = TypeVar('Choice')
+RuntimeChoice = TypeVar('RuntimeChoice')
+Chosen = TypeVar('Chosen')
 
 
-class BaseMutable(BaseModule, ABC, Generic[CHOICE_TYPE, CHOSEN_TYPE]):
+class DumpChosen(NamedTuple):
+
+    chosen: Chosen
+    meta: Optional[Dict[str, Any]]
+
+
+class BaseMutable(BaseModule, ABC, Generic[Choice, RuntimeChoice, Chosen]):
     """Base Class for mutables. Mutable means a searchable module widely used
     in Neural Architecture Search(NAS).
 
@@ -37,22 +44,26 @@ class BaseMutable(BaseModule, ABC, Generic[CHOICE_TYPE, CHOSEN_TYPE]):
         super().__init__(init_cfg=init_cfg)
 
         self.alias = alias
-        self._is_fixed = False
-        self._current_choice: Optional[CHOICE_TYPE] = None
 
     @property
-    def current_choice(self) -> Optional[CHOICE_TYPE]:
+    @abstractmethod
+    def choices(self) -> List[CHOICE_TYPE]:
+        """list: all choices.  All subclasses must implement this method."""
+
+    @property
+    @abstractmethod
+    def current_choice(self) -> RuntimeChoice:
         """Current choice will affect :meth:`forward` and will be used in
         :func:`mmrazor.core.subnet.utils.export_fix_subnet` or mutator.
         """
-        return self._current_choice
 
     @current_choice.setter
-    def current_choice(self, choice: Optional[CHOICE_TYPE]) -> None:
+    @abstractmethod
+    def current_choice(self, choice: Choice) -> None:
         """Current choice setter will be executed in mutator."""
-        self._current_choice = choice
 
     @property
+    @abstractmethod
     def is_fixed(self) -> bool:
         """bool: whether the mutable is fixed.
 
@@ -64,19 +75,12 @@ class BaseMutable(BaseModule, ABC, Generic[CHOICE_TYPE, CHOSEN_TYPE]):
         return self._is_fixed
 
     @is_fixed.setter
+    @abstractmethod
     def is_fixed(self, is_fixed: bool) -> None:
         """Set the status of `is_fixed`."""
-        assert isinstance(is_fixed, bool), \
-            f'The type of `is_fixed` need to be bool type, ' \
-            f'but got: {type(is_fixed)}'
-        if self._is_fixed:
-            raise AttributeError(
-                'The mode of current MUTABLE is `fixed`. '
-                'Please do not set `is_fixed` function repeatedly.')
-        self._is_fixed = is_fixed
 
     @abstractmethod
-    def fix_chosen(self, chosen: CHOSEN_TYPE) -> None:
+    def fix_chosen(self, chosen: Chosen) -> None:
         """Fix mutable with choice. This function would fix the choice of
         Mutable. The :attr:`is_fixed` will be set to True and only the selected
         operations can be retained. All subclasses must implement this method.
@@ -88,10 +92,5 @@ class BaseMutable(BaseModule, ABC, Generic[CHOICE_TYPE, CHOSEN_TYPE]):
     # TODO
     # type hint
     @abstractmethod
-    def dump_chosen(self) -> CHOSEN_TYPE:
-        ...
-
-    @property
-    @abstractmethod
-    def num_choices(self) -> int:
+    def dump_chosen(self) -> DumpChosen:
         pass

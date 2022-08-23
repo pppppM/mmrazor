@@ -4,11 +4,11 @@ from typing import List
 
 import torch
 
-from ..base_mutable import CHOICE_TYPE, CHOSEN_TYPE, BaseMutable
+from ..base_mutable import BaseMutable, Choice, Chosen, RuntimeChoice
 from ..derived_mutable import DerivedMethodMixin
 
 
-class MutableChannel(BaseMutable[CHOICE_TYPE, CHOSEN_TYPE],
+class MutableChannel(BaseMutable[Choice, RuntimeChoice, Chosen],
                      DerivedMethodMixin):
     """A type of ``MUTABLES`` for single path supernet such as AutoSlim. In
     single path supernet, each module only has one choice invoked at the same
@@ -27,68 +27,16 @@ class MutableChannel(BaseMutable[CHOICE_TYPE, CHOSEN_TYPE],
         super().__init__(**kwargs)
 
         self.num_channels = num_channels
-        self._same_mutables: List[MutableChannel] = list()
-
-        # If the input of a module is a concatenation of several modules'
-        # outputs, we add the mutable out of these modules to the
-        # `concat_parent_mutables` of this module.
-        self.concat_parent_mutables: List[MutableChannel] = list()
-        self.name = 'unbind'
 
     @property
-    def same_mutables(self):
-        """Mutables in `same_mutables` and the current mutable should change
-        Synchronously."""
-        return self._same_mutables
-
-    def register_same_mutable(self, mutable):
-        """Register the input mutable in `same_mutables`."""
-        if isinstance(mutable, list):
-            # Add a concatenation of mutables to `concat_parent_mutables`.
-            self.concat_parent_mutables = mutable
-            return
-
-        if self == mutable:
-            return
-        if mutable in self._same_mutables:
-            return
-
-        self._same_mutables.append(mutable)
-        for s_mutable in self._same_mutables:
-            s_mutable.register_same_mutable(mutable)
-            mutable.register_same_mutable(s_mutable)
-
-    @abstractmethod
-    def convert_choice_to_mask(self, choice: CHOICE_TYPE) -> torch.Tensor:
-        """Get the mask according to the input choice."""
-        pass
-
-    @property
-    def current_mask(self):
+    def current_choice(self) -> RuntimeChoice:
         """The current mask.
 
         We slice the registered parameters and buffers of a ``nn.Module``
         according to the mask of the corresponding channel mutable.
         """
-        if len(self.concat_parent_mutables) > 0:
-            # If the input of a module is a concatenation of several modules'
-            # outputs, the in_mask of this module is the concatenation of
-            # these modules' out_mask.
-            return torch.cat([
-                mutable.current_mask for mutable in self.concat_parent_mutables
-            ])
-        else:
-            return self.convert_choice_to_mask(self.current_choice)
 
-    def bind_mutable_name(self, name: str) -> None:
-        """Bind a MutableChannel to its name.
-
-        Args:
-            name (str): Name of this `MutableChannel`.
-        """
-        self.name = name
-
-    def fix_chosen(self, chosen: CHOSEN_TYPE) -> None:
+    def fix_chosen(self, chosen: Chosen) -> None:
         """Fix mutable with subnet config. This operation would convert
         `unfixed` mode to `fixed` mode. The :attr:`is_fixed` will be set to
         True and only the selected operations can be retained.

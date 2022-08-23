@@ -8,11 +8,11 @@ import torch.nn as nn
 from torch import Tensor
 
 from mmrazor.registry import MODELS
-from ..base_mutable import CHOICE_TYPE, CHOSEN_TYPE
+from ..base_mutable import Choice, Chosen, DumpChosen, RuntimeChoice
 from .mutable_module import MutableModule
 
 
-class OneShotMutableModule(MutableModule[CHOICE_TYPE, CHOSEN_TYPE]):
+class OneShotMutableModule(MutableModule[Choice, RuntimeChoice, Chosen]):
     """Base class for one shot mutable module. A base type of ``MUTABLES`` for
     single path supernet such as Single Path One Shot.
 
@@ -63,7 +63,7 @@ class OneShotMutableModule(MutableModule[CHOICE_TYPE, CHOSEN_TYPE]):
             return self.forward_choice(x, choice=self.current_choice)
 
     @abstractmethod
-    def sample_choice(self) -> CHOICE_TYPE:
+    def sample_choice(self) -> Choice:
         """Sample random choice.
 
         Returns:
@@ -85,7 +85,7 @@ class OneShotMutableModule(MutableModule[CHOICE_TYPE, CHOSEN_TYPE]):
         """
 
     @abstractmethod
-    def forward_choice(self, x: Any, choice: CHOICE_TYPE) -> Any:
+    def forward_choice(self, x: Any, choice: Choice) -> Any:
         """Forward with the unfixed mutable and current_choice is not None.
 
         All subclasses must implement this method.
@@ -93,7 +93,7 @@ class OneShotMutableModule(MutableModule[CHOICE_TYPE, CHOSEN_TYPE]):
 
 
 @MODELS.register_module()
-class OneShotMutableOP(OneShotMutableModule[str, str]):
+class OneShotMutableOP(OneShotMutableModule[str, str, str]):
     """A type of ``MUTABLES`` for single path supernet, such as Single Path One
     Shot. In single path supernet, each choice block only has one choice
     invoked at the same time. A path is obtained by sampling all the choice
@@ -243,7 +243,7 @@ class OneShotMutableOP(OneShotMutableModule[str, str]):
             outputs.append(op(x))
         return sum(outputs)
 
-    def fix_chosen(self, chosen: str) -> None:
+    def fix_chosen(self, chosen: Chosen) -> None:
         """Fix mutable with subnet config. This operation would convert
         `unfixed` mode to `fixed` mode. The :attr:`is_fixed` will be set to
         True and only the selected operations can be retained.
@@ -263,23 +263,19 @@ class OneShotMutableOP(OneShotMutableModule[str, str]):
         self._chosen = chosen
         self.is_fixed = True
 
-    def dump_chosen(self) -> str:
+    def dump_chosen(self) -> DumpChosen:
         assert self.current_choice is not None
 
         return self.current_choice
 
-    def sample_choice(self) -> str:
+    def sample_choice(self) -> Choice:
         """uniform sampling."""
         return np.random.choice(self.choices, 1)[0]
 
     @property
-    def choices(self) -> List[str]:
+    def choices(self) -> List[Choice]:
         """list: all choices. """
         return list(self._candidates.keys())
-
-    @property
-    def num_choices(self):
-        return len(self.choices)
 
 
 @MODELS.register_module()
