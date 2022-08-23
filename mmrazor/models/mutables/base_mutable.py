@@ -1,21 +1,29 @@
 # Copyright (c) OpenMMLab. All rights reserved.
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Generic, NamedTuple, Optional, TypeVar
+from typing import (Any, Callable, Dict, Generic, List, NamedTuple, Optional,
+                    TypeVar, Union)
 
 from mmcv.runner import BaseModule
+from typing_extensions import Protocol
 
-Choice = TypeVar('Choice')
+ChoiceItem = TypeVar('ChoiceItem', str, int, float)
+Choices = Optional[List[ChoiceItem]]
+SampleChoice = TypeVar('SampleChoice', str, int, float, List[str], List[int],
+                       List[float])
 RuntimeChoice = TypeVar('RuntimeChoice')
-Chosen = TypeVar('Chosen')
+
+Chosen = Union[ChoiceItem, List[ChoiceItem]]
+# DumpChosen = TypeVar('DumpChosen')
 
 
 class DumpChosen(NamedTuple):
 
-    chosen: Chosen
-    meta: Optional[Dict[str, Any]]
+    chosen: Union[str, int, float, List[str], List[int], List[float]]
+    meta: Optional[Dict[str, Union[str, int, float]]] = None
 
 
-class BaseMutable(BaseModule, ABC, Generic[Choice, RuntimeChoice, Chosen]):
+class BaseMutable(BaseModule, ABC, Generic[ChoiceItem, SampleChoice,
+                                           RuntimeChoice]):
     """Base Class for mutables. Mutable means a searchable module widely used
     in Neural Architecture Search(NAS).
 
@@ -47,22 +55,22 @@ class BaseMutable(BaseModule, ABC, Generic[Choice, RuntimeChoice, Chosen]):
 
     @property
     @abstractmethod
-    def choices(self) -> List[CHOICE_TYPE]:
-        """list: all choices.  All subclasses must implement this method."""
-
-    @property
-    @abstractmethod
-    def current_choice(self) -> RuntimeChoice:
+    def choices(self) -> Choices:
         """Current choice will affect :meth:`forward` and will be used in
         :func:`mmrazor.core.subnet.utils.export_fix_subnet` or mutator.
         """
 
-    @current_choice.setter
+    @property  # type: ignore
     @abstractmethod
-    def current_choice(self, choice: Choice) -> None:
+    def current_choice(self) -> RuntimeChoice:
         """Current choice setter will be executed in mutator."""
 
-    @property
+    @current_choice.setter  # type: ignore
+    @abstractmethod
+    def current_choice(self, choice: SampleChoice) -> None:
+        """Current choice setter will be executed in mutator."""
+
+    @property  # type: ignore
     @abstractmethod
     def is_fixed(self) -> bool:
         """bool: whether the mutable is fixed.
@@ -72,9 +80,8 @@ class BaseMutable(BaseModule, ABC, Generic[Choice, RuntimeChoice, Chosen]):
                 a normal fixed module.
             If a mutable is not fixed, it still is a searchable module.
         """
-        return self._is_fixed
 
-    @is_fixed.setter
+    @is_fixed.setter  # type: ignore
     @abstractmethod
     def is_fixed(self, is_fixed: bool) -> None:
         """Set the status of `is_fixed`."""
@@ -89,8 +96,17 @@ class BaseMutable(BaseModule, ABC, Generic[Choice, RuntimeChoice, Chosen]):
             This operation is irreversible.
         """
 
-    # TODO
-    # type hint
-    @abstractmethod
     def dump_chosen(self) -> DumpChosen:
+        """Dump current choice."""
+        chosen = self.parse_chosen_from_choice(self.current_choice)
+        meta_infos = self.meta_infos
+
+        return DumpChosen(chosen=chosen, meta=meta_infos)
+
+    @abstractmethod
+    def parse_chosen_from_choice(self, choice: RuntimeChoice) -> Chosen:
         pass
+
+    @property
+    def meta_infos(self) -> Optional[Dict[str, Union[str, int, float]]]:
+        return None

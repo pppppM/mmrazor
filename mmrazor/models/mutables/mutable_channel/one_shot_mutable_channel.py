@@ -4,8 +4,9 @@ from typing import Callable, Dict, List, Optional, Union
 import numpy as np
 import torch
 
-from mmrazor.models.mutables.base_mutable import (Choice, Chosen, DumpChosen,
-                                                  RuntimeChoice)
+from mmrazor.models.mutables.base_mutable import (ChoiceItem, Choices, Chosen,
+                                                  DumpChosen, RuntimeChoice,
+                                                  SampleChoice)
 from mmrazor.registry import MODELS
 from ..derived_mutable import DerivedMutable
 from .mutable_channel import MutableChannel
