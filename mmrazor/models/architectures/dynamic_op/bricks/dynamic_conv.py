@@ -3,7 +3,6 @@ from typing import Callable, Dict
 
 import torch.nn as nn
 import torch.nn.functional as F
-from mmcv.cnn.bricks.registry import CONV_LAYERS
 from torch import Tensor
 
 from mmrazor.models.mutables.base_mutable import BaseMutable
@@ -12,7 +11,6 @@ from .dynamic_conv_mixins import (BigNasConvMixin, DynamicConvMixin,
                                   OFAConvMixin)
 
 
-@CONV_LAYERS.register_module()
 @MODELS.register_module()
 class DynamicConv2d(nn.Conv2d, DynamicConvMixin):
     """Dynamic Conv2d OP.
@@ -39,16 +37,21 @@ class DynamicConv2d(nn.Conv2d, DynamicConvMixin):
     def convert_from(cls, module: nn.Conv2d) -> 'DynamicConv2d':
         """Convert an instance of nn.Conv2d to a new instance of
         DynamicConv2d."""
-        return cls(
-            in_channels=module.in_channels,
-            out_channels=module.out_channels,
-            kernel_size=module.kernel_size,
-            stride=module.stride,
-            padding=module.padding,
-            dilation=module.dilation,
-            groups=module.groups,
-            bias=True if module.bias is not None else False,
-            padding_mode=module.padding_mode)
+        # a group-wise conv will not be converted to dynamic conv
+        if module.groups > 1 and not (module.groups == module.out_channels ==
+                                      module.in_channels):
+            return module
+        else:
+            return cls(
+                in_channels=module.in_channels,
+                out_channels=module.out_channels,
+                kernel_size=module.kernel_size,
+                stride=module.stride,
+                padding=module.padding,
+                dilation=module.dilation,
+                groups=module.groups,
+                bias=True if module.bias is not None else False,
+                padding_mode=module.padding_mode)
 
     @property
     def conv_func(self) -> Callable:
@@ -65,7 +68,6 @@ class DynamicConv2d(nn.Conv2d, DynamicConvMixin):
         return self.forward_mixin(x)
 
 
-@CONV_LAYERS.register_module()
 @MODELS.register_module()
 class BigNasConv2d(nn.Conv2d, BigNasConvMixin):
     """Conv2d used in BigNas.
@@ -118,7 +120,6 @@ class BigNasConv2d(nn.Conv2d, BigNasConvMixin):
         return self.forward_mixin(x)
 
 
-@CONV_LAYERS.register_module()
 @MODELS.register_module()
 class OFAConv2d(nn.Conv2d, OFAConvMixin):
     """Conv2d used in `Once-for-All`.
@@ -150,6 +151,7 @@ class OFAConv2d(nn.Conv2d, OFAConvMixin):
     def convert_from(cls, module: nn.Conv2d) -> 'OFAConv2d':
         """Convert an instance of `nn.Conv2d` to a new instance of
         `OFAConv2d`."""
+
         return cls(
             in_channels=module.in_channels,
             out_channels=module.out_channels,

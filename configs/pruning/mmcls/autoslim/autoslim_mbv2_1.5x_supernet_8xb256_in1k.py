@@ -23,6 +23,7 @@ data_preprocessor = dict(
 # !autoslim algorithm config
 num_samples = 2
 model = dict(
+    _delete_=True,
     _scope_='mmrazor',
     type='AutoSlim',
     num_samples=num_samples,
@@ -42,8 +43,8 @@ model = dict(
                 preds_T=dict(recorder='fc', from_student=False)))),
     mutator=dict(
         type='OneShotChannelMutator',
-        mutable_cfg=dict(
-            type='OneShotMutableChannel',
+        channl_group_cfg=dict(
+            type='OneShotChannelGroup',
             candidate_choices=list(i / 12 for i in range(2, 13)),
             candidate_mode='ratio'),
         tracer_cfg=dict(

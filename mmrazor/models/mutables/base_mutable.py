@@ -3,8 +3,7 @@ from abc import ABC, abstractmethod
 from typing import (Any, Callable, Dict, Generic, List, NamedTuple, Optional,
                     TypeVar, Union)
 
-from mmcv.runner import BaseModule
-from typing_extensions import Protocol
+from mmengine.model import BaseModule
 
 ChoiceItem = TypeVar('ChoiceItem', str, int, float)
 Choices = Optional[List[ChoiceItem]]
