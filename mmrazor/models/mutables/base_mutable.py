@@ -1,28 +1,23 @@
 # Copyright (c) OpenMMLab. All rights reserved.
 from abc import ABC, abstractmethod
-from typing import (Any, Callable, Dict, Generic, List, NamedTuple, Optional,
-                    TypeVar, Union)
+from typing import Dict, Generic, List, NamedTuple, Optional, TypeVar, Union
 
 from mmengine.model import BaseModule
 
 ChoiceItem = TypeVar('ChoiceItem', str, int, float)
-Choices = Optional[List[ChoiceItem]]
-SampleChoice = TypeVar('SampleChoice', str, int, float, List[str], List[int],
-                       List[float])
+SampleChoice = TypeVar('SampleChoice', str, float, List[str], List[float])
 RuntimeChoice = TypeVar('RuntimeChoice')
-
-Chosen = Union[ChoiceItem, List[ChoiceItem]]
-# DumpChosen = TypeVar('DumpChosen')
+Chosen = TypeVar('Chosen', str, float, List[str], List[float])
 
 
 class DumpChosen(NamedTuple):
 
-    chosen: Union[str, int, float, List[str], List[int], List[float]]
+    chosen: Union[str, float, List[str], List[float]]
     meta: Optional[Dict[str, Union[str, int, float]]] = None
 
 
 class BaseMutable(BaseModule, ABC, Generic[ChoiceItem, SampleChoice,
-                                           RuntimeChoice]):
+                                           RuntimeChoice, Chosen]):
     """Base Class for mutables. Mutable means a searchable module widely used
     in Neural Architecture Search(NAS).
 
@@ -54,22 +49,17 @@ class BaseMutable(BaseModule, ABC, Generic[ChoiceItem, SampleChoice,
 
     @property
     @abstractmethod
-    def choices(self) -> Choices:
+    def choices(self) -> Optional[List[ChoiceItem]]:
         """Current choice will affect :meth:`forward` and will be used in
         :func:`mmrazor.core.subnet.utils.export_fix_subnet` or mutator.
         """
 
-    @property  # type: ignore
+    @property
     @abstractmethod
     def current_choice(self) -> RuntimeChoice:
         """Current choice setter will be executed in mutator."""
 
-    @current_choice.setter  # type: ignore
-    @abstractmethod
-    def current_choice(self, choice: SampleChoice) -> None:
-        """Current choice setter will be executed in mutator."""
-
-    @property  # type: ignore
+    @property
     @abstractmethod
     def is_fixed(self) -> bool:
         """bool: whether the mutable is fixed.
@@ -80,10 +70,10 @@ class BaseMutable(BaseModule, ABC, Generic[ChoiceItem, SampleChoice,
             If a mutable is not fixed, it still is a searchable module.
         """
 
-    @is_fixed.setter  # type: ignore
-    @abstractmethod
-    def is_fixed(self, is_fixed: bool) -> None:
-        """Set the status of `is_fixed`."""
+    # @is_fixed.setter  # type: ignore
+    # @abstractmethod
+    # def is_fixed(self, is_fixed: bool) -> None:
+    #     """Set the status of `is_fixed`."""
 
     @abstractmethod
     def fix_chosen(self, chosen: Chosen) -> None:

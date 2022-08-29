@@ -24,8 +24,6 @@ class BaseMutableChannel(BaseMutable, DerivedMethodMixin):
         self.name = ''
         self.num_channels = num_channels
 
-    # choice
-
     @abstractproperty
     def current_choice(self):
         raise NotImplementedError()
@@ -61,12 +59,6 @@ class BaseMutableChannel(BaseMutable, DerivedMethodMixin):
                 'Please do not call `fix_chosen` function again.')
 
         self.is_fixed = True
-
-    def dump_chosen(self):
-        raise NotImplementedError()
-
-    def num_choices(self) -> int:
-        raise NotImplementedError()
 
     # others
 

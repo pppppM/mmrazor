@@ -5,7 +5,7 @@ import pytest
 import torch
 import torch.nn as nn
 
-import mmrazor.models  # noqa:F401
+from mmrazor.models import OneShotMutableOP
 from mmrazor.registry import MODELS
 
 
@@ -13,23 +13,22 @@ class TestMutables(TestCase):
 
     def test_oneshotmutableop(self):
         norm_cfg = dict(type='BN', requires_grad=True)
-        op_cfg = dict(
-            type='OneShotMutableOP',
-            candidates=dict(
-                shuffle_3x3=dict(
-                    type='ShuffleBlock', norm_cfg=norm_cfg, kernel_size=3),
-                shuffle_5x5=dict(
-                    type='ShuffleBlock', norm_cfg=norm_cfg, kernel_size=5),
-                shuffle_7x7=dict(
-                    type='ShuffleBlock', norm_cfg=norm_cfg, kernel_size=7),
-                shuffle_xception=dict(
-                    type='ShuffleXception',
-                    norm_cfg=norm_cfg,
-                ),
-            ),
-            module_kwargs=dict(in_channels=32, out_channels=32, stride=1))
 
-        op = MODELS.build(op_cfg)
+        candidates = dict(
+            shuffle_3x3=dict(
+                type='ShuffleBlock', norm_cfg=norm_cfg, kernel_size=3),
+            shuffle_5x5=dict(
+                type='ShuffleBlock', norm_cfg=norm_cfg, kernel_size=5),
+            shuffle_7x7=dict(
+                type='ShuffleBlock', norm_cfg=norm_cfg, kernel_size=7),
+            shuffle_xception=dict(
+                type='ShuffleXception',
+                norm_cfg=norm_cfg,
+            ),
+        )
+        module_kwargs = dict(in_channels=32, out_channels=32, stride=1)
+
+        op = OneShotMutableOP(candidates, module_kwargs)
         input = torch.randn(4, 32, 64, 64)
 
         # test forward all
@@ -37,7 +36,7 @@ class TestMutables(TestCase):
         assert output is not None
 
         # test random choice
-        assert op.sample_choice() in [
+        assert op.choices == [
             'shuffle_3x3', 'shuffle_5x5', 'shuffle_7x7', 'shuffle_xception'
         ]
 
@@ -52,7 +51,6 @@ class TestMutables(TestCase):
 
         assert op.is_fixed is False
         assert len(op.choices) == 4
-        assert op.num_choices == 4
 
         # compare set_forward_args with forward with choice
         op.current_choice = 'shuffle_5x5'
@@ -64,7 +62,6 @@ class TestMutables(TestCase):
         op.fix_chosen('shuffle_3x3')
         assert op.is_fixed is True
         assert len(op.choices) == 1
-        assert op.num_choices == 1
 
         output = op.forward(input)
         assert output.shape[1] == 32
@@ -74,69 +71,6 @@ class TestMutables(TestCase):
 
         with pytest.raises(AttributeError):
             op.fix_chosen('shuffle_3x3')
-
-    def test_oneshotprobop(self):
-        norm_cfg = dict(type='BN', requires_grad=True)
-        op_cfg = dict(
-            type='OneShotProbMutableOP',
-            choice_probs=[0.1, 0.2, 0.3, 0.4],
-            candidates=dict(
-                shuffle_3x3=dict(
-                    type='ShuffleBlock', norm_cfg=norm_cfg, kernel_size=3),
-                shuffle_5x5=dict(
-                    type='ShuffleBlock', norm_cfg=norm_cfg, kernel_size=5),
-                shuffle_7x7=dict(
-                    type='ShuffleBlock', norm_cfg=norm_cfg, kernel_size=7),
-                shuffle_xception=dict(
-                    type='ShuffleXception',
-                    norm_cfg=norm_cfg,
-                ),
-            ),
-            module_kwargs=dict(in_channels=32, out_channels=32, stride=1))
-
-        op = MODELS.build(op_cfg)
-
-        input = torch.randn(4, 32, 64, 64)
-
-        # test forward choice with None
-        with pytest.raises(AssertionError):
-            output = op.forward_choice(input, choice=None)
-
-        # test forward all
-        output = op.forward_all(input)
-        assert output.shape[1] == 32
-
-        # test random choice
-        assert op.sample_choice() in [
-            'shuffle_3x3', 'shuffle_5x5', 'shuffle_7x7', 'shuffle_xception'
-        ]
-        assert 1 - sum(op.choice_probs) < 0.00001
-
-        # test unfixed mode
-        op.current_choice = 'shuffle_3x3'
-        output = op.forward(input)
-
-        assert output.shape[1] == 32
-
-        op.current_choice = 'shuffle_7x7'
-        output = op.forward(input)
-        assert output.shape[1] == 32
-
-        assert op.is_fixed is False
-        assert len(op.choices) == 4
-        assert op.num_choices == 4
-
-        # test fixed mode
-        op.fix_chosen('shuffle_3x3')
-        assert op.is_fixed is True
-        assert len(op.choices) == 1
-        assert op.num_choices == 1
-
-        output = op.forward(input)
-        assert output.shape[1] == 32
-
-        with pytest.raises(AttributeError):
-            op.is_fixed = True
 
     def test_forward_choice(self):
         norm_cfg = dict(type='BN', requires_grad=True)

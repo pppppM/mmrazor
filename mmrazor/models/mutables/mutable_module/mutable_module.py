@@ -5,11 +5,10 @@ from typing import Any, Dict, List, Optional, Union, overload
 from torch import nn
 
 from mmrazor.registry import MODELS
-from ..base_mutable import (BaseMutable, ChoiceItem, Choices, Chosen,
-                            DumpChosen, RuntimeChoice, SampleChoice)
+from ..base_mutable import BaseMutable, RuntimeChoice, SampleChoice
 
 
-class MutableModule(BaseMutable[str, SampleChoice, SampleChoice]):
+class MutableModule(BaseMutable[str, SampleChoice, SampleChoice, List[str]]):
     """Base Class for mutables. Mutable means a searchable module widely used
     in Neural Architecture Search(NAS).
 
@@ -34,7 +33,6 @@ class MutableModule(BaseMutable[str, SampleChoice, SampleChoice]):
 
     def __init__(self,
                  candidates: Union[Dict[str, Dict], nn.ModuleDict],
-                 candidate_probs: Optional[Dict[str, float]] = None,
                  module_kwargs: Optional[Dict[str, Dict]] = None,
                  num_chosen: int = 1,
                  **kwargs) -> None:
@@ -44,6 +42,7 @@ class MutableModule(BaseMutable[str, SampleChoice, SampleChoice]):
         self._is_fixed = False
         self._current_choice: Optional[SampleChoice] = None
         self._num_chosen = num_chosen
+        self._chosen: Optional[List[str]] = None
 
         assert len(candidates) >= 1, \
             f'Number of candidate op must greater than 1, ' \
@@ -62,12 +61,6 @@ class MutableModule(BaseMutable[str, SampleChoice, SampleChoice]):
         assert len(self.candidates) >= 1, \
             f'Number of candidate op must greater than or equal to 1, ' \
             f'but got {len(self.candidates)}'
-
-        self._candidate_probs = candidate_probs
-
-    @property
-    def choice_probs(self):
-        return self._candidate_probs.values()
 
     @property
     def num_chosen(self) -> int:
@@ -102,19 +95,21 @@ class MutableModule(BaseMutable[str, SampleChoice, SampleChoice]):
         return ops
 
     @property
-    def choices(self) -> List[ChoiceItem]:
+    def chosen(self) -> List[str]:
+        assert self._chosen is not None
+        return self._chosen
+
+    @property
+    def choices(self) -> List[str]:
         """list: all choices. """
         return list(self.candidates.keys())
 
     @property
     def current_choice(self) -> SampleChoice:
-        """Current choice will affect :meth:`forward` and will be used in
-        :func:`mmrazor.core.subnet.utils.export_fix_subnet` or mutator.
-        """
         assert self._current_choice is not None
         return self._current_choice
 
-    @BaseMutable.current_choice.setter
+    @current_choice.setter
     def current_choice(self, choice: SampleChoice) -> None:
         """Current choice setter will be executed in mutator."""
         self._current_choice = choice
@@ -142,7 +137,7 @@ class MutableModule(BaseMutable[str, SampleChoice, SampleChoice]):
                 'Please do not set `is_fixed` function repeatedly.')
         self._is_fixed = is_fixed
 
-    def fix_chosen(self, chosen: Chosen) -> None:
+    def fix_chosen(self, chosen: Union[str, List[str]]) -> None:
         """Fix mutable with `choice`. This operation would convert `unfixed`
         mode to `fixed` mode. The :attr:`is_fixed` will be set to True and only
         the selected operations can be retained.
@@ -164,6 +159,10 @@ class MutableModule(BaseMutable[str, SampleChoice, SampleChoice]):
                 self.candidates.pop(c)
 
         self.is_fixed = True
+        self._chosen = chosen
+
+    # def parse_chosen_from_choice(self, choice: RuntimeChoice) -> List[str]:
+    #     return self.current_choice
 
     @abstractmethod
     def forward(self, x: Any) -> Any:

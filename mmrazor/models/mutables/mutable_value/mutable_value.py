@@ -8,7 +8,8 @@ from ..derived_mutable import DerivedMethodMixin, DerivedMutable
 
 
 @MODELS.register_module()
-class MutableValue(BaseMutable[Any, Dict], DerivedMethodMixin):
+class MutableValue(BaseMutable[float, float, float, float],
+                   DerivedMethodMixin):
     """Base class for mutable value.
 
     A mutable value is actually a mutable that adds some functionality to a
@@ -26,7 +27,7 @@ class MutableValue(BaseMutable[Any, Dict], DerivedMethodMixin):
     """
 
     def __init__(self,
-                 value_list: List[Any],
+                 value_list: List[float],
                  default_value: Optional[Any] = None,
                  alias: Optional[str] = None,
                  init_cfg: Optional[Dict] = None) -> None:
@@ -37,7 +38,37 @@ class MutableValue(BaseMutable[Any, Dict], DerivedMethodMixin):
 
         if default_value is None:
             default_value = value_list[0]
-        self.current_choice = default_value
+        self._current_choice = default_value
+        self._chosen: Optional[float] = None
+        self._is_fixed = False
+
+    @property
+    def chosen(self) -> float:
+        assert self._chosen is not None
+        return self._chosen
+
+    @property
+    def is_fixed(self) -> bool:
+        """bool: whether the mutable is fixed.
+
+        Note:
+            If a mutable is fixed, it is no longer a searchable module, just
+                a normal fixed module.
+            If a mutable is not fixed, it still is a searchable module.
+        """
+        return self._is_fixed
+
+    @is_fixed.setter
+    def is_fixed(self, is_fixed: bool) -> None:
+        """Set the status of `is_fixed`."""
+        assert isinstance(is_fixed, bool), \
+            f'The type of `is_fixed` need to be bool type, ' \
+            f'but got: {type(is_fixed)}'
+        if self._is_fixed:
+            raise AttributeError(
+                'The mode of current MUTABLE is `fixed`. '
+                'Please do not set `is_fixed` function repeatedly.')
+        self._is_fixed = is_fixed
 
     @staticmethod
     def _check_is_same_type(value_list: List[Any]) -> None:
@@ -55,54 +86,32 @@ class MutableValue(BaseMutable[Any, Dict], DerivedMethodMixin):
                     f'and type {type(value_list[i])} exist.')
 
     @property
-    def choices(self) -> List[Any]:
+    def choices(self) -> List[float]:
         """List of choices."""
         return self._value_list
 
-    def fix_chosen(self, chosen: Dict[str, Any]) -> None:
+    def fix_chosen(self, chosen: float) -> None:
         """Fix mutable value with subnet config.
 
         Args:
-            chosen (dict): the information of chosen.
+            chosen (float): the chosen value.
         """
         if self.is_fixed:
             raise RuntimeError('MutableValue can not be fixed twice')
 
-        all_choices = chosen['all_choices']
-        current_choice = chosen['current_choice']
+        assert chosen in self.choices
 
-        assert all_choices == self.choices, \
-            f'Expect choices to be: {self.choices}, but got: {all_choices}'
-        assert current_choice in self.choices
-
-        self.current_choice = current_choice
-        self.is_fixed = True
-
-    def dump_chosen(self) -> Dict[str, Any]:
-        """Dump information of chosen.
-
-        Returns:
-            Dict[str, Any]: Dumped information.
-        """
-        return dict(
-            current_choice=self.current_choice, all_choices=self.choices)
+        self._is_fixed = True
+        self.current_choice = chosen
+        self._chosen = chosen
 
     @property
-    def num_choices(self) -> int:
-        """Number of all choices.
-
-        Returns:
-            int: Number of choices.
-        """
-        return len(self.choices)
-
-    @property
-    def current_choice(self) -> Optional[Any]:
+    def current_choice(self) -> float:
         """Current choice of mutable value."""
         return self._current_choice
 
     @current_choice.setter
-    def current_choice(self, choice: Any) -> Any:
+    def current_choice(self, choice: float) -> None:
         """Setter of current choice."""
         if choice not in self.choices:
             raise ValueError(f'Expected choice in: {self.choices}, '
@@ -176,38 +185,14 @@ class OneShotMutableValue(MutableValue):
             and `Pretrained`.
     """
 
-    def __init__(self,
-                 value_list: List[Any],
-                 default_value: Optional[Any] = None,
-                 alias: Optional[str] = None,
-                 init_cfg: Optional[Dict] = None) -> None:
-        value_list = sorted(value_list)
-        # set default value as max value
-        if default_value is None:
-            default_value = value_list[-1]
-
-        super().__init__(
-            value_list=value_list,
-            default_value=default_value,
-            alias=alias,
-            init_cfg=init_cfg)
-
-    def sample_choice(self) -> Any:
-        """Random sampling from choices.
-
-        Returns:
-            Any: Selected choice.
-        """
-        return random.choice(self.choices)
-
     @property
-    def max_choice(self) -> Any:
+    def max_choice(self) -> float:
         """Max choice of all choices.
 
         Returns:
             Any: Max choice.
         """
-        return self.choices[-1]
+        return max(self.choices)
 
     @property
     def min_choice(self) -> Any:
@@ -216,21 +201,4 @@ class OneShotMutableValue(MutableValue):
         Returns:
             Any: Min choice.
         """
-        return self.choices[0]
-
-    def __mul__(self, other) -> DerivedMutable:
-        """Overload `*` operator.
-
-        Args:
-            other (int, OneShotMutableChannel): Expand ratio or
-                OneShotMutableChannel.
-
-        Returns:
-            DerivedMutable: Derived expand mutable.
-        """
-        # from ..mutable_channel import OneShotMutableChannel
-
-        # if isinstance(other, OneShotMutableChannel):
-        #     return other * self
-
-        return super().__mul__(other)
+        return min(self.choices)

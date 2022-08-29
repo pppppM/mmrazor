@@ -36,6 +36,9 @@ class OneShotMutableModule(MutableModule[str]):
         :meth:`forward_all` is called when calculating FLOPs.
     """
 
+    def parse_chosen_from_choice(self, choice: str) -> List[str]:
+        return [choice]
+
     def forward(self, x: Any) -> Any:
         """Calls either :func:`forward_fixed` or :func:`forward_choice`
         depending on whether :func:`is_fixed` is ``True`` and whether
@@ -139,28 +142,6 @@ class OneShotMutableOP(OneShotMutableModule):
         True
     """
 
-    def fix_chosen(self, chosen: Chosen) -> None:
-        """Fix mutable with subnet config. This operation would convert
-        `unfixed` mode to `fixed` mode. The :attr:`is_fixed` will be set to
-        True and only the selected operations can be retained.
-
-        Args:
-            chosen (str): the chosen key in ``MUTABLE``. Defaults to None.
-        """
-        if self.is_fixed:
-            raise AttributeError(
-                'The mode of current MUTABLE is `fixed`. '
-                'Please do not call `fix_chosen` function again.')
-
-        for c in self.choices:
-            if c != chosen:
-                self.candidates.pop(c)
-
-        self.is_fixed = True
-
-    def parse_chosen_from_choice(self, choice: SampleChoice) -> Chosen:
-        return choice
-
     def forward_fixed(self, x: Any) -> Tensor:
         """Forward with the `fixed` mutable.
 
@@ -171,7 +152,8 @@ class OneShotMutableOP(OneShotMutableModule):
         Returns:
             Tensor: the result of forward the fixed operation.
         """
-        return self.candidates[self.current_choice](x)
+        assert len(self.chosen) == 1
+        return self.candidates[self.chosen[0]](x)
 
     def forward_choice(self, x: Any, choice: RuntimeChoice) -> Tensor:
         """Forward with the `unfixed` mutable and current choice is not None.

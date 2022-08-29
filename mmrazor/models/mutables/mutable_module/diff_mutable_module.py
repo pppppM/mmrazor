@@ -9,11 +9,14 @@ import torch.nn.functional as F
 from torch import Tensor
 
 from mmrazor.registry import MODELS
-from ..base_mutable import (ChoiceItem, Choices, Chosen, DumpChosen,
-                            RuntimeChoice, SampleChoice)
+from ..base_mutable import (ChoiceItem, Chosen, DumpChosen, RuntimeChoice,
+                            SampleChoice)
 from .mutable_module import MutableModule
 
 PartialType = Callable[[Any, Optional[nn.Parameter]], Any]
+
+DiffRuntimeChoice = List[str]
+DiffSampleChoice = List[str]
 
 
 class DiffMutableModule(MutableModule[List[str]]):
@@ -31,6 +34,9 @@ class DiffMutableModule(MutableModule[List[str]]):
     Note:
         :meth:`forward_all` is called when calculating FLOPs.
     """
+
+    def parse_chosen_from_choice(self, choice: List[str]) -> List[str]:
+        return self.current_choice
 
     def forward(self,
                 x: Any,
@@ -127,8 +133,7 @@ class DiffMutableOP(DiffMutableModule):
         Returns:
             Tensor: the result of forward the fixed operation.
         """
-        return sum(self.candidates[choice](x)
-                   for choice in self.current_choice)
+        return sum(self.candidates[choice](x) for choice in self.chosen)
 
     def forward_arch_param(self,
                            x: Any,
@@ -287,27 +292,6 @@ class DiffChoiceRoute(DiffMutableModule):
             outputs.append(op(input))
 
         return sum(outputs)
-
-    def fix_chosen(self, chosen: Chosen) -> None:
-        """Fix mutable with `choice`. This operation would convert to `fixed`
-        mode. The :attr:`is_fixed` will be set to True and only the selected
-        operations can be retained.
-
-        Args:
-            chosen (list(str)): the chosen key in ``MUTABLE``.
-        """
-        self._unfixed_choices = self.choices
-
-        if self.is_fixed:
-            raise AttributeError(
-                'The mode of current MUTABLE is `fixed`. '
-                'Please do not call `fix_chosen` function again.')
-
-        for c in self.choices:
-            if c not in chosen:
-                self.candidates.pop(c)
-
-        self.is_fixed = True
 
 
 @MODELS.register_module()
