@@ -210,9 +210,9 @@ class GroupFisher(BaseAlgorithm):
             grad_feature = grad_input[0]
             # avoid that last batch is't full,
             # but actually it's always full in mmdetection.
-
             cur_mask = module.mutable_attrs.in_channels.current_mask
-            
+            cur_mask = cur_mask.to(feature.device)
+            self.temp_fisher_info[module] = self.temp_fisher_info[module].to(feature.device) 
             self.temp_fisher_info[module][:grad_input[0].size(0), cur_mask] += \
                 compute_fisher(feature, grad_feature)
         
@@ -221,10 +221,10 @@ class GroupFisher(BaseAlgorithm):
         """Accumulate all the fisher during self.interval iterations."""
 
         for module, name in self.conv_names.items():
-            self.accum_fishers[module] += self.batch_fishers[module]
+            self.accum_fishers[module] += self.batch_fishers[module].cpu()
         for unit in self.mutator.units:
             group = unit.name
-            self.accum_fishers[group] += self.batch_fishers[group]
+            self.accum_fishers[group] += self.batch_fishers[group].cpu()
 
     def reduce_fishers(self):
         """Collect fisher from all rank."""
@@ -252,13 +252,13 @@ class GroupFisher(BaseAlgorithm):
                
                 module_fisher = self.temp_fisher_info[module]
 
-                self.temp_fisher_info[unit.name] += module_fisher
+                self.temp_fisher_info[unit.name] += module_fisher.cpu()
                 delta_flops = self.flops[module] // module.in_channels // \
                     module.out_channels * activated_channels
                 self.flops[unit.name] += delta_flops
 
             self.batch_fishers[unit.name] = (
-                self.temp_fisher_info[unit.name]**2).sum(0)
+                self.temp_fisher_info[unit.name]**2).sum(0).to(module.weight.device)
             
 
             for output_channel in unit.output_related:
@@ -279,7 +279,7 @@ class GroupFisher(BaseAlgorithm):
 
         for module, name in self.conv_names.items():
             self.batch_fishers[module] = (
-                self.temp_fisher_info[module]**2).sum(0)
+                self.temp_fisher_info[module]**2).sum(0).to(module.weight.device)
 
     def init_flops_acts(self):
         """Clear the flops and acts of model in last iter."""
@@ -357,7 +357,8 @@ class GroupFisher(BaseAlgorithm):
                 break
 
         flops, acts = self.compute_flops_acts()
-        print_log(f'slim {module} {channel}th channel, flops {flops:.2f}, acts {acts:.2f}')
+        if dist.get_rank()==0:
+            print_log(f'slim {module} {channel}th channel, flops {flops:.2f}, acts {acts:.2f}')
         
 
     def find_pruning_channel(self, module, fisher, in_mask, info):
@@ -392,26 +393,28 @@ class GroupFisher(BaseAlgorithm):
                 data_samples: Optional[List[BaseDataElement]] = None,
                 mode: str = 'tensor') -> ForwardResults:
         """Forward."""
-
-        if self.cur_iter > 0:
+        hub = MessageHub.get_current_instance()
+        cur_iter = hub.runtime_info['iter']
+        if cur_iter > 0:
             self.group_fishers()
             if dist.is_initialized():
                 self.reduce_fishers()
             self.accumulate_fishers()
             self.init_temp_fishers()
             
-            if self.cur_iter % self.interval == 0:
+            if cur_iter % self.interval == 0:
                 self.channel_prune()
                 self.init_accum_fishers()
                 flops, acts = self.compute_flops_acts()
                 if self.delta == 'flops':
                     if flops < self.save_ckpt_delta_thr[0]:
-                        hub = MessageHub.get_current_instance()
-                        import pdb;pdb.set_trace()
+                        cfg = Config.fromstring(hub.runtime_info['cfg'],'.py')
                         self.save_ckpt_delta_thr.pop(0)
+                        ckpt = {'state_dict': self.architecture.state_dict()}
+                        save_path = f'{cfg.work_dir}/flops_{flops:.2f}.pth'
+                        save_checkpoint(ckpt, save_path)
                 else:
                     if acts < self.save_ckpt_delta_thr[0]:
-                        hub = MessageHub.get_current_instance()
                         cfg = Config.fromstring(hub.runtime_info['cfg'],'.py')
                         self.save_ckpt_delta_thr.pop(0)
                         ckpt = {'state_dict': self.architecture.state_dict()}
@@ -420,7 +423,6 @@ class GroupFisher(BaseAlgorithm):
 
                         print_log(f'Save checkpoint to {save_path}')
             self.init_flops_acts()
-        self.cur_iter += 1
         
 
         return super().forward(inputs, data_samples, mode)
